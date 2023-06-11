@@ -46,13 +46,11 @@ func Register(c *gin.Context) {
 func Login(c *gin.Context) {
 	//receive
 	var user model.User
-	log.Println("0")
 	if err := c.ShouldBind(&user); err != nil {
 		log.Println(err)
 		util.RespNormErr(c, util.BindingQueryErrCode)
 		return
 	}
-	log.Println("1")
 	mysqlUser, err := service.SearchUserByName(user.Username)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

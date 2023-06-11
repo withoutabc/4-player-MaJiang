@@ -2,8 +2,8 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/websocket"
-	"log"
 	"net/url"
 )
 
@@ -24,10 +24,10 @@ func WaitResponse() {
 	for {
 		_, message, err := Conn.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
+			fmt.Println("连接中断")
 			return
 		}
-		log.Println(string(message))
+		fmt.Println(string(message))
 	}
 }
 
@@ -47,7 +47,7 @@ func SendMessage(messageType int, data map[string]interface{}) error {
 	// 发送消息
 	err = Conn.WriteMessage(websocket.TextMessage, payload)
 	if err != nil {
-		log.Println("write:", err)
+		fmt.Println("write:", err)
 		return err
 	}
 	return nil

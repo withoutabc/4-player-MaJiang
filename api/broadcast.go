@@ -10,27 +10,26 @@ func broadcast(broadType float64, room *Room, username string, b bool) {
 	var message string
 	for _, player := range room.Players {
 		switch broadType {
-		case join:
+		case Join:
 			message = fmt.Sprintf("%s进入了房间", username)
-		case create:
-			message = fmt.Sprintf("%s创建了房间", username)
-		case leave:
+		case Create:
+			message = fmt.Sprintf("房间号：%s\n%s创建了房间", room.ID, username)
+		case Leave:
 			message = fmt.Sprintf("%s离开了房间", username)
-		case changeReady:
+		case ChangeReady:
 			if b == true {
 				message = fmt.Sprintf("%s已准备", username)
 			} else {
 				message = fmt.Sprintf("%s已取消准备", username)
 			}
-		case common:
+		case Common:
 			message = username
-			// 发送消息
-			err := player.WriteMessage(websocket.TextMessage, []byte(message))
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
+		}
+		// 发送消息
+		err := player.WriteMessage(websocket.TextMessage, []byte(message))
+		if err != nil {
+			log.Println(err)
+			continue
 		}
 	}
 }

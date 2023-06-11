@@ -7,7 +7,7 @@ import (
 	"log"
 	"majiang/model"
 	"net/http"
-	"reflect"
+	"sync"
 )
 
 // 定义WebSocket连接
@@ -28,10 +28,11 @@ type Room struct {
 	Users    map[int]*model.PlayUser // 用户
 	IsFull   bool                    // 是否满员
 	IsStart  bool                    // 是否开始
+	mutex    sync.Mutex
 }
 
-// 定义房间列表
-var rooms = make(map[string]*Room)
+// Rooms 定义房间列表
+var Rooms = make(map[string]*Room)
 
 // wsHandler 处理WebSocket连接
 func wsHandler(c *gin.Context) {
@@ -71,18 +72,20 @@ func handleMessage(conn *websocket.Conn, msg []byte) {
 		log.Println(err)
 		return
 	}
+	log.Println(message["type"])
 	// 获取消息类型
 	//messageType, ok := message["type"].(int)
 	// 根据消息类型调用对应的函数
 	switch message["type"] {
-	case create:
-		log.Println("create")
-		log.Println(message["userID"])
-
-		log.Println(reflect.TypeOf(message["userID"]))
-		createRoom(conn, 1)
-	case join:
-		userID, ok := message["userID"].(int)
+	case Create:
+		userID, ok := message["userID"].(float64)
+		if !ok {
+			log.Println("ok")
+			return
+		}
+		createRoom(conn, userID)
+	case Join:
+		userID, ok := message["userID"].(float64)
 		if !ok {
 			return
 		}
@@ -91,18 +94,20 @@ func handleMessage(conn *websocket.Conn, msg []byte) {
 			return
 		}
 		joinRoom(conn, roomID, userID)
-	case leave:
-		userID, ok := message["userID"].(int)
+	case Leave:
+		userID, ok := message["userID"].(float64)
 		if !ok {
+			log.Println("ds")
 			return
 		}
 		roomID, ok := message["roomID"].(string)
 		if !ok {
+			log.Println("das")
 			return
 		}
 		leaveRoom(conn, roomID, userID)
-	case changeReady:
-		userID, ok := message["userID"].(int)
+	case ChangeReady:
+		userID, ok := message["userID"].(float64)
 		if !ok {
 			return
 		}
@@ -115,5 +120,25 @@ func handleMessage(conn *websocket.Conn, msg []byte) {
 			return
 		}
 		changeReadyState(conn, roomID, ready, userID)
+	case RoomList:
+		GetRoomList(conn)
+	case Common:
+		userID, ok := message["userID"].(float64)
+		if !ok {
+			log.Println("n")
+			return
+		}
+		roomID, ok := message["roomID"].(string)
+		if !ok {
+			log.Println("a")
+			return
+		}
+		sentence, ok := message["sentence"].(string)
+		if !ok {
+			log.Println("m")
+			return
+		}
+		chat(conn, userID, roomID, sentence)
 	}
+
 }

@@ -1,9 +1,10 @@
 package api
 
 var (
-	common      float64 = 0
-	create      float64 = 1
-	join        float64 = 2
-	leave       float64 = 3
-	changeReady float64 = 4
+	Common      float64 = 0
+	Create      float64 = 1
+	Join        float64 = 2
+	Leave       float64 = 3
+	ChangeReady float64 = 4
+	RoomList    float64 = 5
 )

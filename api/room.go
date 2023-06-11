@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
 	"majiang/model"
@@ -9,14 +10,14 @@ import (
 	"sync"
 )
 
-var mutex *sync.Mutex
+var mutex sync.Mutex
 
 // createRoom 创建房间
-func createRoom(conn *websocket.Conn, UID int64) {
+func createRoom(conn *websocket.Conn, UID float64) {
 	log.Println("create")
 	// 加锁
-	//	mutex.Lock()
-	//	defer mutex.Unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	// 生成房间ID
 	roomID := util.GenerateRoomId()
 	// 创建房间
@@ -35,7 +36,7 @@ func createRoom(conn *websocket.Conn, UID int64) {
 		broadcastInfo(conn, "查找用户信息失败")
 		conn.Close()
 		//从房间列表中移除该房间
-		delete(rooms, roomID)
+		delete(Rooms, roomID)
 		return
 	}
 	//加入玩家链接
@@ -45,18 +46,19 @@ func createRoom(conn *websocket.Conn, UID int64) {
 	//添加用户
 	room.Users[int(UID)] = &model.PlayUser{ID: int(UID), Username: user.Username}
 	// 添加房间到房间列表中
-	rooms[roomID] = room
+	Rooms[roomID] = room
+	log.Println(Rooms)
 	// 广播房间信息
-	broadcast(create, room, user.Username, true)
+	broadcast(Create, room, user.Username, true)
 }
 
 // joinRoom 加入房间
-func joinRoom(conn *websocket.Conn, roomID string, UID int) {
+func joinRoom(conn *websocket.Conn, roomID string, UID float64) {
 	// 加锁
 	mutex.Lock()
 	defer mutex.Unlock()
 	// 获取房间
-	room, ok := rooms[roomID]
+	room, ok := Rooms[roomID]
 	if !ok {
 		broadcastInfo(conn, "获取房间失败")
 		return
@@ -68,7 +70,7 @@ func joinRoom(conn *websocket.Conn, roomID string, UID int) {
 		return
 	}
 	//查找用户信息
-	user, err := service.SearchUserById(UID)
+	user, err := service.SearchUserById(int(UID))
 	if err != nil {
 		broadcastInfo(conn, "查找用户信息失败")
 		//用户信息查找发生错误
@@ -76,31 +78,33 @@ func joinRoom(conn *websocket.Conn, roomID string, UID int) {
 		return
 	}
 	// 添加玩家到房间中
-	room.Players[UID] = conn
+	room.Players[int(UID)] = conn
 	//满员需设置
 	if len(room.Players) >= 4 {
 		room.IsFull = true
 	}
 	//设置准备状态
-	room.ReadyMap[UID] = false
+	room.ReadyMap[int(UID)] = false
 	//添加用户
-	room.Users[UID] = &model.PlayUser{ID: UID, Username: user.Username}
+	room.Users[int(UID)] = &model.PlayUser{ID: int(UID), Username: user.Username}
 	// 广播房间信息
-	broadcast(join, room, user.Username, true)
+	broadcast(Join, room, user.Username, true)
 }
 
 // leaveRoom 退出房间
-func leaveRoom(conn *websocket.Conn, roomID string, UID int) {
-	// 加锁
-	mutex.Lock()
-	defer mutex.Unlock()
+func leaveRoom(conn *websocket.Conn, roomID string, UID float64) {
+	log.Println(Rooms)
+	log.Println("leave")
+
 	// 获取房间
-	room, ok := rooms[roomID]
+	room, ok := Rooms[roomID]
 	if !ok {
 		broadcastInfo(conn, "获取房间失败")
 		return
 	}
-
+	// 加锁
+	//mutex.Lock()
+	//defer mutex.Unlock()
 	if room.IsStart == true {
 		broadcastInfo(conn, "游戏已开始")
 		return
@@ -110,14 +114,14 @@ func leaveRoom(conn *websocket.Conn, roomID string, UID int) {
 		room.IsFull = false
 	}
 
-	if room.ReadyMap[UID] == true {
+	if room.ReadyMap[int(UID)] == true {
 		broadcastInfo(conn, "请先取消准备")
 		return
 	}
 	// 移除玩家
-	delete(room.Players, UID)
-	delete(room.Users, UID)
-	delete(room.ReadyMap, UID)
+	delete(room.Players, int(UID))
+	delete(room.Users, int(UID))
+	delete(room.ReadyMap, int(UID))
 	// 如果房主退出房间，则随机一个玩家成为新的房主
 	if conn == room.Owner {
 		if len(room.Players) > 0 {
@@ -126,28 +130,28 @@ func leaveRoom(conn *websocket.Conn, roomID string, UID int) {
 				break
 			}
 		} else {
-			delete(rooms, roomID)
+			delete(Rooms, roomID)
 			return
 		}
 	}
 	//查找用户信息
-	user, err := service.SearchUserById(UID)
+	user, err := service.SearchUserById(int(UID))
 	if err != nil {
 		broadcastInfo(conn, "查找用户信息失败")
 		return
 	}
 	conn.Close()
 	// 广播房间信息
-	broadcast(leave, room, user.Username, true)
+	broadcast(Leave, room, user.Username, true)
 }
 
 // changeReadyState 改变准备状态
-func changeReadyState(conn *websocket.Conn, roomID string, ready bool, UID int) {
+func changeReadyState(conn *websocket.Conn, roomID string, ready bool, UID float64) {
 	// 加锁
 	mutex.Lock()
 	defer mutex.Unlock()
 	// 获取房间
-	room, ok := rooms[roomID]
+	room, ok := Rooms[roomID]
 	if !ok {
 		broadcastInfo(conn, "获取房间失败")
 		return
@@ -157,11 +161,11 @@ func changeReadyState(conn *websocket.Conn, roomID string, ready bool, UID int) 
 		return
 	}
 	// 改变准备状态
-	if room.ReadyMap[UID] == ready {
+	if room.ReadyMap[int(UID)] == ready {
 		broadcastInfo(conn, "重复更改准备状态")
 		return
 	}
-	room.ReadyMap[UID] = ready
+	room.ReadyMap[int(UID)] = ready
 	var count = 0
 	//如果全部准备则直接开始
 	for _, b := range room.ReadyMap {
@@ -171,15 +175,48 @@ func changeReadyState(conn *websocket.Conn, roomID string, ready bool, UID int) 
 		count++
 	}
 	//查找用户信息
-	user, err := service.SearchUserById(UID)
+	user, err := service.SearchUserById(int(UID))
 	if err != nil {
 		broadcastInfo(conn, "查找用户信息失败")
 		return
 	}
 	// 广播房间信息
-	broadcast(changeReady, room, user.Username, ready)
+	broadcast(ChangeReady, room, user.Username, ready)
 	if count == 4 {
 		room.IsStart = true
-		broadcast(common, room, "游戏开始！", true)
+		broadcast(Common, room, "游戏开始！", true)
 	}
+}
+
+func GetRoomList(conn *websocket.Conn) {
+	var boolMap = map[bool]string{
+		true:  "已开始",
+		false: "未开始",
+	}
+	var sentences string
+	for roomID, room := range Rooms {
+		sentence := fmt.Sprintf("房间号:%s 状态:%s 人数:%d\n", roomID, boolMap[room.IsStart], len(room.Players))
+		sentences += sentence
+	}
+	broadcastInfo(conn, sentences)
+}
+
+func chat(conn *websocket.Conn, UID float64, roomID string, sentence string) {
+	// 加锁
+	mutex.Lock()
+	defer mutex.Unlock()
+	//查找用户信息
+	user, err := service.SearchUserById(int(UID))
+	if err != nil {
+		broadcastInfo(conn, "查找用户信息失败")
+		return
+	}
+	// 获取房间
+	room, ok := Rooms[roomID]
+	if !ok {
+		broadcastInfo(conn, "获取房间失败")
+		return
+	}
+	sentence = fmt.Sprintf("%s:%s", user.Username, sentence)
+	broadcast(Common, room, sentence, true)
 }
