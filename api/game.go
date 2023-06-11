@@ -60,7 +60,7 @@ func DoPeng(conn *websocket.Conn, roomID string, turn, suit, point float64) {
 	var count = 0
 	var discard []int
 	pengCards := game.TurnMap[int(turn)].PengCards
-
+	//遍历，看看有几个
 	for i, card := range game.TurnMap[int(turn)].Cards {
 		if card == targetCard {
 			count++
@@ -72,17 +72,19 @@ func DoPeng(conn *websocket.Conn, roomID string, turn, suit, point float64) {
 		for _, cardIndex := range discard {
 			pengCards = append(pengCards, game.TurnMap[int(turn)].Cards[cardIndex])
 		}
+		//放一个刚才摸的
+		pengCards = append(pengCards, targetCard)
 		game.TurnMap[int(turn)].PengCards = pengCards
 		//手牌区删除这2张
 		var count1 = 0
 		var res []Card
 		for i := 0; i < len(game.TurnMap[int(turn)].Cards); i++ {
-			if count1 < 3 && i == discard[count] {
+			if count1 < 2 && i == discard[count] {
 				count1++
 				continue // 跳过要删除的索引
 			}
 			res = append(res, game.TurnMap[int(turn)].Cards[i]) // 将其他位置的元素添加到新的切片中
-			if count1 == 3 {                                    // 计数器达到 3，结束循环
+			if count1 == 2 {                                    // 计数器达到2，结束循环
 				break
 			}
 		}
@@ -116,34 +118,36 @@ func DoGang(conn *websocket.Conn, roomID string, turn, suit, point float64) {
 	if int(turn) != game.currentTurn {
 		broadcastInfo(conn, "不能杠别人哦")
 	}
-	//判断碰的牌在他手上有没有四个
+	//判断碰的牌在他手上有没有3个
 	targetCard := Card{Point: int(point), Suit: int(suit)}
 	var count = 0
 	var discard []int
-	pengCards := game.TurnMap[int(turn)].PengCards
-	cards := game.TurnMap[int(turn)].Cards
-	for i, card := range cards {
+	gangCards := game.TurnMap[int(turn)].GangCards
+	//遍历，看看有几个
+	for i, card := range game.TurnMap[int(turn)].Cards {
 		if card == targetCard {
 			count++
 		}
 		discard = append(discard, i)
 	}
-	//大于4就从手牌放4个到碰牌列表
-	if count >= 4 {
+	//大于3就从手牌放3个到杠牌列表
+	if count >= 3 {
 		for _, cardIndex := range discard {
-			pengCards = append(pengCards, cards[cardIndex])
+			gangCards = append(gangCards, game.TurnMap[int(turn)].Cards[cardIndex])
 		}
-		game.TurnMap[int(turn)].PengCards = pengCards
-		//手牌区删除这三张
+		//放一个刚才摸的
+		gangCards = append(gangCards, targetCard)
+		game.TurnMap[int(turn)].PengCards = gangCards
+		//手牌区删除这2张
 		var count1 = 0
 		var res []Card
-		for i := 0; i < len(cards); i++ {
+		for i := 0; i < len(game.TurnMap[int(turn)].Cards); i++ {
 			if count1 < 3 && i == discard[count] {
 				count1++
 				continue // 跳过要删除的索引
 			}
-			res = append(res, cards[i]) // 将其他位置的元素添加到新的切片中
-			if count1 == 4 {            // 计数器达到 3，结束循环
+			res = append(res, game.TurnMap[int(turn)].Cards[i]) // 将其他位置的元素添加到新的切片中
+			if count1 == 3 {                                    // 计数器达到 3，结束循环
 				break
 			}
 		}
@@ -154,10 +158,12 @@ func DoGang(conn *websocket.Conn, roomID string, turn, suit, point float64) {
 	}
 	//全局广播
 	broadcastGang(game, suit, point)
+	//让这个人摸牌
+	//TODO:给他再摸一次牌
 }
 
 // DoHu 胡
-func DoHu(conn *websocket.Conn, roomID string, turn float64) {
+func DoHu(conn *websocket.Conn, roomID string, turn, suit, point float64) {
 	// 获取房间
 	room, ok := Rooms[roomID]
 	if !ok {
@@ -170,11 +176,23 @@ func DoHu(conn *websocket.Conn, roomID string, turn float64) {
 		broadcastInfo(conn, "获取游戏失败")
 		return
 	}
-
+	var newCards []Card
+	//组合所有牌
+	cards := game.TurnMap[int(turn)].Cards
+	pendCards := game.TurnMap[int(turn)].PengCards
+	gangCards := game.TurnMap[int(turn)].GangCards
+	newCard := Card{Suit: int(suit), Point: int(point)}
+	newCards = append(append(newCards, cards...), pendCards...)
+	newCards = append(append(newCards, gangCards...), newCard)
+	if JudgeHu(newCards) {
+		broadcastHu(game, turn)
+	} else {
+		broadcastInfo(conn, "不能胡")
+	}
 }
 
 // JudgeHu 判断能不能胡
 func JudgeHu(card []Card) bool {
-
+	//TODO:判断
 	return false
 }

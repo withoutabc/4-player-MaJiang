@@ -8,9 +8,7 @@ const (
 	ChangeReady
 	RoomList
 	Start
-	LookCard
 
-	Play
 	Peng
 	Gang
 	Hu

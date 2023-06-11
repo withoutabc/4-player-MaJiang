@@ -150,6 +150,17 @@ func broadcastGang(game *Game, suit, point float64) {
 
 }
 
-func broadcastHu(game *Game) {
-
+func broadcastHu(game *Game, turn float64) {
+	//发送给房间内每一位玩家
+	message := fmt.Sprintf("%s杠胡了", game.TurnMap[int(turn)].Username)
+	for _, player := range game.TurnMap {
+		// 发送消息
+		err := player.Conn.WriteMessage(websocket.TextMessage, []byte(message))
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+	}
+	//胡完牌看下各自手牌
+	broadcastCard(game)
 }

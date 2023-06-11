@@ -165,8 +165,67 @@ func handleMessage(conn *websocket.Conn, msg []byte) {
 			return
 		}
 		Chupai(conn, roomID, userID, suit, point)
+	case Peng:
+		roomID, ok := message["roomID"].(string)
+		if !ok {
+			log.Println("a")
+			return
+		}
+		turn, ok := message["turn"].(float64)
+		if !ok {
+			return
+		}
+		suit, ok := message["suit"].(float64)
+		if !ok {
+			log.Println("n")
+			return
+		}
+		point, ok := message["point"].(float64)
+		if !ok {
+			log.Println("n")
+			return
+		}
+		DoPeng(conn, roomID, turn, suit, point)
+	case Hu:
+		roomID, ok := message["roomID"].(string)
+		if !ok {
+			log.Println("a")
+			return
+		}
+		turn, ok := message["turn"].(float64)
+		if !ok {
+			return
+		}
+		suit, ok := message["suit"].(float64)
+		if !ok {
+			log.Println("n")
+			return
+		}
+		point, ok := message["point"].(float64)
+		if !ok {
+			log.Println("n")
+			return
+		}
+		DoHu(conn, roomID, turn, suit, point)
+	case Gang:
+		roomID, ok := message["roomID"].(string)
+		if !ok {
+			return
+		}
+		turn, ok := message["turn"].(float64)
+		if !ok {
+			return
+		}
+		suit, ok := message["suit"].(float64)
+		if !ok {
+			return
+		}
+		point, ok := message["point"].(float64)
+		if !ok {
+			return
+		}
+		DoGang(conn, roomID, turn, suit, point)
 	}
-
 }
 
 // StartRoom 初始化游戏
