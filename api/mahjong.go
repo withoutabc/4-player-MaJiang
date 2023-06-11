@@ -7,11 +7,13 @@ import (
 	"time"
 )
 
+// Card 麻将牌
 type Card struct {
 	Suit  int //花色 1-3
 	Point int //点数 1-9
 }
 
+// Player 游戏玩家
 type Player struct {
 	turn      int    //玩家轮次
 	Username  string //用户名
@@ -21,13 +23,16 @@ type Player struct {
 	Conn      *websocket.Conn
 }
 
+// Game 游戏
 type Game struct {
 	ID          string          //房间id
 	TurnMap     map[int]*Player //随机分配轮次
-	Banker      int             //庄家(随机)
-	Wall        []Card          //牌墙
-	DiscardPile []Card          //弃牌区
-	currentTurn int             //当前轮次
+	Count       int
+	Banker      int           //庄家(随机)
+	Wall        []Card        //牌墙
+	DiscardPile []Card        //弃牌区
+	currentTurn int           //当前轮次
+	Ticker      chan struct{} //摸牌和出牌信息传递
 	Mutex       sync.Mutex
 }
 
@@ -46,12 +51,14 @@ func InitWall() []Card {
 	return wall
 }
 
+// NewGame 初始化游戏
 func NewGame(room *Room) *Game {
 	game := &Game{
 		ID:          room.ID,
 		TurnMap:     make(map[int]*Player),
 		Wall:        InitWall(),
 		currentTurn: 1,
+		Count:       1,
 	}
 
 	players := make([]*Player, 0)

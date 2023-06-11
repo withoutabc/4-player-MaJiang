@@ -8,7 +8,10 @@ import (
 	"majiang/model"
 	"net/http"
 	"sync"
+	"time"
 )
+
+var Ticker chan struct{}
 
 // 定义WebSocket连接
 var upgrader = websocket.Upgrader{
@@ -37,6 +40,7 @@ func wsHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
+		log.Println("1")
 		return
 	}
 	// 处理连接
@@ -50,6 +54,7 @@ func handleConnection(conn *websocket.Conn) {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			log.Println(err)
+			log.Println("2")
 			break
 		}
 		// 处理消息
@@ -59,8 +64,10 @@ func handleConnection(conn *websocket.Conn) {
 	conn.Close()
 }
 
-// 处理消息
+// handleMessage 处理消息
 func handleMessage(conn *websocket.Conn, msg []byte) {
+	//把每一个满员的房间开启
+	go StartRoom()
 	log.Println("handle message")
 	// 解析消息
 	var message map[string]interface{}
@@ -136,6 +143,81 @@ func handleMessage(conn *websocket.Conn, msg []byte) {
 			return
 		}
 		chat(conn, userID, roomID, sentence)
+	case ChuPai:
+		userID, ok := message["userID"].(float64)
+		if !ok {
+			log.Println("n")
+			return
+		}
+		roomID, ok := message["roomID"].(string)
+		if !ok {
+			log.Println("a")
+			return
+		}
+		suit, ok := message["suit"].(float64)
+		if !ok {
+			log.Println("n")
+			return
+		}
+		point, ok := message["point"].(float64)
+		if !ok {
+			log.Println("n")
+			return
+		}
+		Chupai(conn, roomID, userID, suit, point)
 	}
 
+}
+
+// StartRoom 初始化游戏
+func StartRoom() {
+	for _, room := range Rooms {
+		if room.IsStart == true {
+			game := NewGame(room)
+			Games[room] = game
+			//打印手牌
+			log.Println(game.TurnMap[1].Cards)
+			log.Println(game.TurnMap[2].Cards)
+			log.Println(game.TurnMap[3].Cards)
+			log.Println(game.TurnMap[4].Cards)
+			broadcastCard(game) //广播各自手牌
+			//开启协程，每一轮出牌过60秒后自动切换到下一个人轮次
+			go Mopai(game)
+		}
+	}
+}
+
+// Mopai 循环轮次变更摸牌的处理
+func Mopai(game *Game) {
+	for {
+		//判断一下还有没有牌了
+		if len(game.Wall) == 0 {
+			broadcast(Common, nil, "没牌了，游戏结束", true)
+			return
+		}
+		if game.Count == 1 { //第一轮不摸直接出
+			//提示玩家出牌
+			broadcastInfo(game.TurnMap[game.currentTurn].Conn, "庄家请出一张牌")
+		} else {
+			//给当前轮次者发牌
+			player := game.TurnMap[game.currentTurn]
+			card := game.Wall[0]
+			player.Cards = append(player.Cards, card) // 给玩家发牌
+			game.Wall = game.Wall[1:]                 // 牌墙去掉已经发出的牌
+			//全局广播
+			broadcastMoPai(game)
+			//提示玩家出牌
+			broadcastInfo(game.TurnMap[game.currentTurn].Conn, "请出一张牌")
+			//等待玩家出完牌
+		}
+		<-Ticker
+		//等待60秒
+		time.Sleep(time.Minute)
+		//轮次变更
+		game.currentTurn++
+		if game.currentTurn > 4 {
+			game.Count++
+			game.currentTurn = 1
+		}
+	}
 }
