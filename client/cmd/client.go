@@ -111,9 +111,7 @@ func main() {
 				if err != nil {
 					continue
 				}
-				for {
 
-				}
 			case 3:
 				err = client.SendMessage(5, nil)
 				if err != nil {

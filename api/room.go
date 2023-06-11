@@ -10,6 +10,8 @@ import (
 	"sync"
 )
 
+// Rooms 定义房间列表
+var Rooms = make(map[string]*Room)
 var mutex sync.Mutex
 
 // createRoom 创建房间
@@ -89,6 +91,14 @@ func joinRoom(conn *websocket.Conn, roomID string, UID float64) {
 	room.Users[int(UID)] = &model.PlayUser{ID: int(UID), Username: user.Username}
 	// 广播房间信息
 	broadcast(Join, room, user.Username, true)
+	if room.IsFull == true {
+		broadcast()
+		game := NewGame(room)
+		log.Println(game.TurnMap[1].Cards)
+		log.Println(game.TurnMap[2].Cards)
+		log.Println(game.TurnMap[3].Cards)
+		log.Println(game.TurnMap[4].Cards)
+	}
 }
 
 // leaveRoom 退出房间
@@ -103,8 +113,8 @@ func leaveRoom(conn *websocket.Conn, roomID string, UID float64) {
 		return
 	}
 	// 加锁
-	//mutex.Lock()
-	//defer mutex.Unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	if room.IsStart == true {
 		broadcastInfo(conn, "游戏已开始")
 		return

@@ -9,7 +9,7 @@ func InitRouter() {
 	u := router.Group("/user")
 	{
 		u.POST("/register", Register)
-		u.POST("/login/:username/:password", Login)
+		u.POST("/login", Login)
 	}
 
 	router.GET("/ws", wsHandler)

@@ -31,9 +31,6 @@ type Room struct {
 	mutex    sync.Mutex
 }
 
-// Rooms 定义房间列表
-var Rooms = make(map[string]*Room)
-
 // wsHandler 处理WebSocket连接
 func wsHandler(c *gin.Context) {
 	// 升级HTTP连接为WebSocket连接
